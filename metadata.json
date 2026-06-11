@@ -1,0 +1,6 @@
+{
+  "name": "Ekam Homes Doon",
+  "description": "An elegant, responsive web system for tracking Ekam Homes residents, rooms, rent collection income, and categorized maintenance expenses.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

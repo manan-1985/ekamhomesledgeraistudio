@@ -1,0 +1,100 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 1. Global Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // global helper functions
+    function isValidId(id) { return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$'); }
+    function isSignedIn() { return request.auth != null; }
+
+    // validator for Registration
+    function isValidRegistration(data) {
+      return data.uid is string && data.uid.size() <= 128
+        && data.name is string && data.name.size() > 0 && data.name.size() <= 200
+        && data.email is string && data.email.size() > 0 && data.email.size() <= 200
+        && data.phone is string && data.phone.size() > 0 && data.phone.size() <= 50
+        && data.createdAt is string && data.createdAt.size() <= 100;
+    }
+
+    // validator for Resident
+    function isValidResident(data) {
+      return data.keys().hasAll(['id', 'name', 'roomNumber', 'rentCategory', 'monthlyRent', 'active', 'joinDate'])
+        && data.keys().size() <= 13
+        && data.id is string && data.id.size() <= 128
+        && data.name is string && data.name.size() > 0 && data.name.size() <= 200
+        && data.roomNumber is string && data.roomNumber.size() > 0 && data.roomNumber.size() <= 20
+        && data.rentCategory in ['monthly', 'yearly', 'part_payment']
+        && data.monthlyRent is number && data.monthlyRent >= 0
+        && (data.yearlyRent == null || (data.yearlyRent is number && data.yearlyRent >= 0))
+        && (data.partPaymentAmount == null || (data.partPaymentAmount is number && data.partPaymentAmount >= 0))
+        && (data.partPaymentCount == null || (data.partPaymentCount is number && data.partPaymentCount >= 0))
+        && (data.phone == null || (data.phone is string && data.phone.size() <= 20))
+        && data.active is bool
+        && data.joinDate is string && data.joinDate.size() == 10
+        && (data.rentDueDay == null || (data.rentDueDay is number && data.rentDueDay >= 1 && data.rentDueDay <= 31))
+        && (data.reminderEnabled == null || data.reminderEnabled is bool);
+    }
+
+    // validator for Payment
+    function isValidPayment(data) {
+      return data.keys().hasAll(['id', 'type', 'description', 'amount', 'date'])
+        && data.keys().size() <= 7
+        && data.id is string && data.id.size() <= 128
+        && data.type in ['resident', 'other']
+        && (data.paymentType == null || data.paymentType in ['monthly', 'installment', 'part_payment', 'one_time'])
+        && (data.residentId == null || (data.residentId is string && data.residentId.size() <= 128))
+        && data.description is string && data.description.size() <= 500
+        && data.amount is number && data.amount >= 0
+        && data.date is string && data.date.size() == 10;
+    }
+
+    // validator for Expense
+    function isValidExpense(data) {
+      return data.keys().hasAll(['id', 'category', 'subCategory', 'amount', 'date'])
+        && data.keys().size() <= 6
+        && data.id is string && data.id.size() <= 128
+        && data.category in ['groceries', 'salaries', 'maintenance', 'rent', 'utilities', 'miscellaneous']
+        && data.subCategory is string && data.subCategory.size() <= 200
+        && data.amount is number && data.amount >= 0
+        && data.date is string && data.date.size() == 10
+        && (data.notes == null || (data.notes is string && data.notes.size() <= 2000));
+    }
+
+    // Match rules for user registrations and profiles
+    match /registrations/{uid} {
+      allow get: if isSignedIn() && (request.auth.uid == uid || request.auth.token.get('email', '') == 'mbansal198542@gmail.com');
+      allow list: if isSignedIn() && request.auth.token.get('email', '') == 'mbansal198542@gmail.com';
+      allow create, update: if isSignedIn() && request.auth.uid == uid && isValidRegistration(request.resource.data);
+      allow delete: if isSignedIn() && request.auth.token.get('email', '') == 'mbansal198542@gmail.com';
+    }
+
+    // Match rules for nested subcollections under user sandbox
+    match /users/{userId} {
+      allow read, write: if isSignedIn() && request.auth.uid == userId;
+
+      match /residents/{residentId} {
+        allow get: if isSignedIn() && request.auth.uid == userId && isValidId(residentId);
+        allow list: if isSignedIn() && request.auth.uid == userId;
+        allow create, update: if isSignedIn() && request.auth.uid == userId && isValidId(residentId) && isValidResident(request.resource.data);
+        allow delete: if isSignedIn() && request.auth.uid == userId && isValidId(residentId);
+      }
+
+      match /payments/{paymentId} {
+        allow get: if isSignedIn() && request.auth.uid == userId && isValidId(paymentId);
+        allow list: if isSignedIn() && request.auth.uid == userId;
+        allow create, update: if isSignedIn() && request.auth.uid == userId && isValidId(paymentId) && isValidPayment(request.resource.data);
+        allow delete: if isSignedIn() && request.auth.uid == userId && isValidId(paymentId);
+      }
+
+      match /expenses/{expenseId} {
+        allow get: if isSignedIn() && request.auth.uid == userId && isValidId(expenseId);
+        allow list: if isSignedIn() && request.auth.uid == userId;
+        allow create, update: if isSignedIn() && request.auth.uid == userId && isValidId(expenseId) && isValidExpense(request.resource.data);
+        allow delete: if isSignedIn() && request.auth.uid == userId && isValidId(expenseId);
+      }
+    }
+  }
+}

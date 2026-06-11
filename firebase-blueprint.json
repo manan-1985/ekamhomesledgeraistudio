@@ -1,0 +1,85 @@
+{
+  "entities": {
+    "Resident": {
+      "title": "Resident",
+      "description": "Information about a hostel tenant or resident",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique identifier" },
+        "name": { "type": "string", "description": "Full name of the resident" },
+        "roomNumber": { "type": "string", "description": "Assigned room number" },
+        "rentCategory": { "type": "string", "enum": ["monthly", "yearly", "part_payment"], "description": "Rent collection category" },
+        "monthlyRent": { "type": "number", "description": "Equivalent monthly rent fee" },
+        "yearlyRent": { "type": "number", "description": "Optional total yearly rent fee" },
+        "partPaymentAmount": { "type": "number", "description": "Optional installment amount for part payments" },
+        "partPaymentCount": { "type": "number", "description": "Optional total part payment installments" },
+        "phone": { "type": "string", "description": "Mobile contact number" },
+        "active": { "type": "boolean", "description": "True if currently occupying the room" },
+        "joinDate": { "type": "string", "description": "Registered check-in date in YYYY-MM-DD format" },
+        "rentDueDay": { "type": "number", "description": "Day of month rent is due (1-31)" },
+        "reminderEnabled": { "type": "boolean", "description": "Whether rent notifications are enabled" }
+      },
+      "required": ["id", "name", "roomNumber", "rentCategory", "monthlyRent", "active", "joinDate"]
+    },
+    "Payment": {
+      "title": "Payment",
+      "description": "Financial ledger document representing income or payments received",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique identifier" },
+        "type": { "type": "string", "enum": ["resident", "other"], "description": "Revenue stream type" },
+        "paymentType": { "type": "string", "enum": ["monthly", "installment", "part_payment", "one_time"], "description": "Payer schedule mode" },
+        "residentId": { "type": "string", "description": "Associated resident ID if type is resident" },
+        "description": { "type": "string", "description": "Revenue description or note" },
+        "amount": { "type": "number", "description": "Transaction amount in INR" },
+        "date": { "type": "string", "description": "Payment date in YYYY-MM-DD format" }
+      },
+      "required": ["id", "type", "description", "amount", "date"]
+    },
+    "Expense": {
+      "title": "Expense",
+      "description": "Financial ledger document representing a disbursed expense outlay",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique identifier" },
+        "category": { "type": "string", "enum": ["groceries", "salaries", "maintenance", "rent", "utilities", "miscellaneous"], "description": "Broad category group" },
+        "subCategory": { "type": "string", "description": "Detailed operating expense category" },
+        "amount": { "type": "number", "description": "Disbursed amount in INR" },
+        "date": { "type": "string", "description": "Expense date in YYYY-MM-DD format" },
+        "notes": { "type": "string", "description": "Any explanatory notes" }
+      },
+      "required": ["id", "category", "subCategory", "amount", "date"]
+    },
+    "Registration": {
+      "title": "Registration",
+      "description": "User profile containing name, email and phone number",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "description": "Unique user authentication UID" },
+        "name": { "type": "string", "description": "Full name of the user" },
+        "email": { "type": "string", "description": "User email address" },
+        "phone": { "type": "string", "description": "Mobile contact number" },
+        "createdAt": { "type": "string", "description": "Timestamp of registration" }
+      },
+      "required": ["uid", "name", "email", "phone", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/registrations/{uid}": {
+      "schema": "Registration",
+      "description": "User registration entry containing credentials and profile details"
+    },
+    "/users/{userId}/residents/{residentId}": {
+      "schema": "Resident",
+      "description": "Scoped tenant list for a specific administrator user"
+    },
+    "/users/{userId}/payments/{paymentId}": {
+      "schema": "Payment",
+      "description": "Scoped received revenues list for a specific administrator user"
+    },
+    "/users/{userId}/expenses/{expenseId}": {
+      "schema": "Expense",
+      "description": "Scoped maintenance expenditures list for a specific administrator user"
+    }
+  }
+}
